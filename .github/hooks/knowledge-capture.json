@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "python .claude/hooks/knowledge_capture.py",
+        "powershell": "python .claude/hooks/knowledge_capture.py",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
