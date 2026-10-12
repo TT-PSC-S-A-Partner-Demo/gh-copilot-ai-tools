@@ -5,8 +5,8 @@ session - blocks the stop with a reason that asks the agent to route the knowled
 patch an existing skill, update instructions, write a script, create a skill, add a hook,
 or log a single lesson to .claude/learnings.md (promoted after 3 occurrences).
 
-Works with Claude Code (Stop) and GitHub Copilot CLI (agentStop / Stop):
-both accept {"decision": "block", "reason": ...} and both send stop_hook_active.
+Works with Claude Code (Stop), GitHub Copilot CLI (agentStop) and Copilot in VS Code (Stop):
+all send stop_hook_active; VS Code reads the decision from hookSpecificOutput.
 """
 import json
 import os
@@ -31,7 +31,9 @@ MAX_SKILLS = env_int("KNOWLEDGE_CAPTURE_MAX_SKILLS", 30)               # library
 SKILL_DIRS = (".claude/skills", ".github/skills", ".agents/skills")
 LEARNINGS = Path(".claude") / "learnings.md"
 EDIT_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit",   # Claude Code
-              "edit", "create", "apply_patch"}                # Copilot CLI
+              "edit", "create", "apply_patch",                # Copilot CLI
+              "replace_string_in_file", "multi_replace_string_in_file",  # Copilot in VS Code
+              "create_file", "insert_edit_into_file", "edit_notebook_file"}
 
 CORRECTION_RE = re.compile(
     r"\b(nie,|zawsze|nigdy|pamiętaj|źle|następnym razem|always|never|remember|don't|instead)\b",
@@ -58,7 +60,7 @@ def events(entry):
     """Normalize one transcript line to ("user", text) / ("tool", (name, command)) events.
 
     Claude Code: {"type": "user"|"assistant", "message": {...}}
-    Copilot CLI: {"type": "user.message"|"tool.execution_start", "data": {...}}
+    Copilot CLI and VS Code: {"type": "user.message"|"tool.execution_start", "data": {...}}
     """
     kind = entry.get("type")
     if kind == "user":
@@ -217,12 +219,13 @@ def main():
     log(state_dir, {"session_id": session_id, "tool_calls": tool_calls, "edits": edits,
                     "corrections": corrections, "repeated": len(repeated), "promote": len(promote)})
 
-    skills = existing_skills(project_dir)
-    print(json.dumps({
-        "decision": "block",
-        "reason": build_reason(signals, skills, promote),
-        "systemMessage": "Knowledge capture: " + "; ".join(signals),
-    }))
+    reason = build_reason(signals, existing_skills(project_dir), promote)
+    output = {"decision": "block", "reason": reason,
+              "systemMessage": "Knowledge capture: " + "; ".join(signals)}
+    # VS Code (snake_case payload with timestamp) reads the decision from hookSpecificOutput.
+    if "timestamp" in event and "hook_event_name" in event:
+        output["hookSpecificOutput"] = {"hookEventName": "Stop", "decision": "block", "reason": reason}
+    print(json.dumps(output))
     return 0
 
 

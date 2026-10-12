@@ -1,6 +1,6 @@
 # Knowledge capture — narzędzia, które tworzą narzędzia
 
-AI agents (Claude Code, GitHub Copilot) learn a lot in a session — conventions, pitfalls, API
+AI agents (Claude Code, GitHub Copilot CLI, Copilot in VS Code) learn a lot in a session — conventions, pitfalls, API
 quirks, corrections like "always use pnpm" — and lose it when the session ends. Agents almost
 never persist that knowledge on their own: the model focuses on the current task, and an
 instruction such as "save what you learn" is only a suggestion.
@@ -63,10 +63,10 @@ default 30: above it only patches), opt-out with `KNOWLEDGE_CAPTURE=off`, decisi
 | Path | Purpose |
 |---|---|
 | `.claude/hooks/knowledge_capture.py` | the hook (Python 3, no dependencies) |
-| `.claude/hooks/test_knowledge_capture.py` | 23 tests on synthetic Claude and Copilot transcripts |
+| `.claude/hooks/test_knowledge_capture.py` | 26 tests on synthetic Claude, Copilot CLI and VS Code transcripts |
 | `.claude/hooks/evaluate_hook.py` | replays the heuristics over your local transcripts (read-only) |
 | `.claude/settings.json` | Claude Code registration (`Stop`) |
-| `.github/hooks/knowledge-capture.json` | Copilot CLI / cloud agent registration (`agentStop`) |
+| `.github/hooks/knowledge-capture.json` | Copilot CLI / VS Code / cloud agent registration (`agentStop`) |
 
 ## Use it in your project
 
@@ -79,6 +79,17 @@ default 30: above it only patches), opt-out with `KNOWLEDGE_CAPTURE=off`, decisi
 ```bash
 python .claude/hooks/test_knowledge_capture.py
 ```
+
+### Copilot in VS Code (tested on real transcripts, VS Code 1.141)
+
+- VS Code loads `.github/hooks/*.json` (Copilot format is mapped to its own) and runs it on `Stop`.
+  It reads `.claude/settings.json` only with `chat.useClaudeHooks` enabled (off by default).
+- `transcript_path` points to `workspaceStorage/<hash>/GitHub.copilot-chat/transcripts/<id>.jsonl`, which
+  uses the same event format as Copilot CLI; VS Code edit tools (`replace_string_in_file`,
+  `multi_replace_string_in_file`, `create_file`, …) count as edits.
+- VS Code expects the decision in `hookSpecificOutput` (`hookEventName: "Stop"`, `decision: "block"`,
+  `reason`); the hook adds it when the payload looks like VS Code's (`timestamp` + `hook_event_name`).
+- VS Code documents the transcript format as not stable — if it changes, the hook stays silent (fails open).
 
 ### GitHub Copilot CLI (verified live on Copilot CLI 1.0.89, Windows)
 

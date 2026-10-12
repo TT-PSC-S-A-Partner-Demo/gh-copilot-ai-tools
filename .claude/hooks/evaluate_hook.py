@@ -1,6 +1,6 @@
 """Replays knowledge_capture.py heuristics over your local transcripts (read-only).
 
-Shows how often the hook would fire for Claude Code and GitHub Copilot CLI sessions,
+Shows how often the hook would fire for Claude Code, Copilot CLI and Copilot in VS Code sessions,
 which signals drive it, and how long the analysis takes. Use it to tune thresholds.
 
 Usage: python .claude/hooks/evaluate_hook.py
@@ -16,6 +16,8 @@ import knowledge_capture as kc  # noqa: E402
 SOURCES = {
     "claude": "~/.claude/projects/*/*.jsonl",
     "copilot": "~/.copilot/session-state/*/events.jsonl",
+    "vscode": os.path.join(os.environ.get("APPDATA") or "~/.config",
+                           "Code/User/workspaceStorage/*/GitHub.copilot-chat/transcripts/*.jsonl"),
 }
 
 

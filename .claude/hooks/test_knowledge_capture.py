@@ -148,5 +148,23 @@ check("copilot: apply_patch liczy się jako edycja -> block", out and "3 edycji"
 check("copilot: korekty z user.message", out and "2 korekt" in out["reason"])
 check("copilot: dedup widzi .github/skills", out and "deploy" in out["reason"])
 
+# --- Copilot in VS Code: Copilot-style transcript, snake_case Stop payload ---
+vscode = ([{"type": "tool.execution_start", "data": {"toolName": "read_file", "arguments": {"filePath": "a"}}}] * 37
+          + [{"type": "tool.execution_start", "data": {"toolName": "replace_string_in_file",
+                                                        "arguments": {"filePath": "b"}}}] * 2
+          + [{"type": "tool.execution_start", "data": {"toolName": "create_file", "arguments": {"filePath": "c"}}}])
+proj = Path(tempfile.mkdtemp())
+(proj / "t.jsonl").write_text("\n".join(json.dumps(e) for e in vscode), encoding="utf-8")
+event = {"timestamp": "2026-10-12T10:00:00Z", "cwd": str(proj), "session_id": "v1",
+         "hook_event_name": "Stop", "transcript_path": str(proj / "t.jsonl"), "stop_hook_active": False}
+proc = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(event), capture_output=True,
+                      text=True, encoding="utf-8", env=BASE_ENV)
+out = json.loads(proc.stdout) if proc.stdout.strip() else None
+check("vscode: replace_string_in_file/create_file liczą się jako edycje", out and "3 edycji" in out["reason"])
+spec = (out or {}).get("hookSpecificOutput", {})
+check("vscode: decyzja w hookSpecificOutput", spec.get("hookEventName") == "Stop" and spec.get("decision") == "block")
+out, _ = run(reads(37) + edits(3))
+check("claude: bez hookSpecificOutput", out and "hookSpecificOutput" not in out)
+
 print(f"\n{sum(results)}/{len(results)} passed")
 sys.exit(0 if all(results) else 1)
